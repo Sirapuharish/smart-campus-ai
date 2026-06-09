@@ -1,28 +1,68 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.database.db import Base, engine, get_db
+from app.models.user import User
+from app.schemas.user import UserCreate, UserResponse, UserLogin
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SmartCampus API")
+
 
 @app.get("/")
 def home():
     return {"message": "SmartCampus API Running"}
-from fastapi import FastAPI
 
-app = FastAPI(title="SmartCampus API")
 
-@app.get("/")
-def home():
-    return {"message": "SmartCampus API Running"}
+@app.post("/register", response_model=UserResponse)
+def register(user: UserCreate, db: Session = Depends(get_db)):
 
-@app.get("/health")
-def health():
+    # Check if email already exists
+    existing_user = db.query(User).filter(User.email == user.email).first()
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered"
+        )
+
+    # Create new user
+    db_user = User(
+        name=user.name,
+        email=user.email,
+        password=user.password,
+        role="student"
+    )
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+
+    return db_user
+
+@app.post("/login")
+def login(user: UserLogin, db: Session = Depends(get_db)):
+
+    db_user = db.query(User).filter(
+        User.email == user.email
+    ).first()
+
+    if not db_user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    if db_user.password != user.password:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid password"
+        )
+
     return {
-        "status": "healthy",
-        "project": "SmartCampus"
-    }
-
-@app.get("/student")
-def student():
-    return {
-        "name": "Harish",
-        "role": "Student"
+        "message": "Login successful",
+        "user_id": db_user.id,
+        "name": db_user.name,
+        "role": db_user.role
     }
