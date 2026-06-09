@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database.db import Base, engine, get_db
 from app.models.user import User
+
 from app.schemas.user import (
     UserCreate,
     UserResponse,
@@ -12,6 +13,10 @@ from app.schemas.user import (
 from app.utils.security import (
     hash_password,
     verify_password
+)
+
+from app.utils.jwt_handler import (
+    create_access_token
 )
 
 Base.metadata.create_all(bind=engine)
@@ -79,9 +84,14 @@ def login(
             detail="Invalid password"
         )
 
+    access_token = create_access_token(
+        {
+            "sub": db_user.email,
+            "role": db_user.role
+        }
+    )
+
     return {
-        "message": "Login successful",
-        "user_id": db_user.id,
-        "name": db_user.name,
-        "role": db_user.role
+        "access_token": access_token,
+        "token_type": "bearer"
     }
