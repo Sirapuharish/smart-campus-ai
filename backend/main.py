@@ -1,4 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import (
+    HTTPBearer,
+    HTTPAuthorizationCredentials
+)
+
 from sqlalchemy.orm import Session
 
 from app.database.db import Base, engine, get_db
@@ -16,12 +21,15 @@ from app.utils.security import (
 )
 
 from app.utils.jwt_handler import (
-    create_access_token
+    create_access_token,
+    verify_token
 )
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SmartCampus API")
+
+security = HTTPBearer()
 
 
 @app.get("/")
@@ -94,4 +102,27 @@ def login(
     return {
         "access_token": access_token,
         "token_type": "bearer"
+    }
+
+
+@app.get("/me")
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(
+        security
+    )
+):
+
+    token = credentials.credentials
+
+    payload = verify_token(token)
+
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    return {
+        "email": payload["sub"],
+        "role": payload["role"]
     }
