@@ -16,7 +16,10 @@ from app.schemas.marks import MarksCreate
 from app.models.marks import Marks
 from app.models.student import Student
 from app.schemas.student import StudentCreate
-
+from app.schemas.teacher import (
+    TeacherMarksCreate,
+    TeacherAttendanceCreate
+)
 from app.schemas.user import (
     UserCreate,
     UserResponse,
@@ -343,3 +346,66 @@ def get_students(
     ).all()
 
     return students
+
+@app.post("/teacher/marks")
+def teacher_add_marks(
+    marks_data: TeacherMarksCreate,
+    db: Session = Depends(get_db)
+):
+
+    student = db.query(
+        Student
+    ).filter(
+        Student.student_id == marks_data.student_id
+    ).first()
+
+    if not student:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found"
+        )
+
+    new_marks = Marks(
+        student_email=student.email,
+        subject=marks_data.subject,
+        marks=marks_data.marks
+    )
+
+    db.add(new_marks)
+    db.commit()
+
+    return {
+        "message": "Marks added successfully",
+        "student": student.name
+    }
+@app.post("/teacher/attendance")
+def teacher_add_attendance(
+    attendance_data: TeacherAttendanceCreate,
+    db: Session = Depends(get_db)
+):
+
+    student = db.query(
+        Student
+    ).filter(
+        Student.student_id == attendance_data.student_id
+    ).first()
+
+    if not student:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found"
+        )
+
+    new_attendance = Attendance(
+        student_email=student.email,
+        date=attendance_data.date,
+        status=attendance_data.status
+    )
+
+    db.add(new_attendance)
+    db.commit()
+
+    return {
+        "message": "Attendance added successfully",
+        "student": student.name
+    }
