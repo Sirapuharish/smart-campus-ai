@@ -14,6 +14,8 @@ from app.models.attendance import Attendance
 from app.models.marks import Marks
 from app.schemas.marks import MarksCreate
 from app.models.marks import Marks
+from app.models.student import Student
+from app.schemas.student import StudentCreate
 
 from app.schemas.user import (
     UserCreate,
@@ -299,3 +301,45 @@ def student_dashboard(
             2
         )
     }
+@app.post("/student/create")
+def create_student(
+    student: StudentCreate,
+    db: Session = Depends(get_db)
+):
+
+    existing_student = db.query(
+        Student
+    ).filter(
+        Student.email == student.email
+    ).first()
+
+    if existing_student:
+        raise HTTPException(
+            status_code=400,
+            detail="Student already exists"
+        )
+
+    new_student = Student(
+        student_id=student.student_id,
+        name=student.name,
+        email=student.email,
+        course=student.course,
+        year=student.year
+    )
+
+    db.add(new_student)
+    db.commit()
+
+    return {
+        "message": "Student created successfully"
+    }
+@app.get("/students")
+def get_students(
+    db: Session = Depends(get_db)
+):
+
+    students = db.query(
+        Student
+    ).all()
+
+    return students
