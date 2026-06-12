@@ -138,6 +138,13 @@ def get_current_user_payload(
 
     return payload
 
+def require_teacher(payload: dict):
+
+    if payload["role"] != "teacher":
+        raise HTTPException(
+            status_code=403,
+            detail="Teacher access required"
+        )
 
 @app.get("/me")
 def get_current_user(
@@ -350,8 +357,11 @@ def get_students(
 @app.post("/teacher/marks")
 def teacher_add_marks(
     marks_data: TeacherMarksCreate,
+    payload: dict = Depends(get_current_user_payload),
     db: Session = Depends(get_db)
 ):
+
+    require_teacher(payload)
 
     student = db.query(
         Student
@@ -381,8 +391,11 @@ def teacher_add_marks(
 @app.post("/teacher/attendance")
 def teacher_add_attendance(
     attendance_data: TeacherAttendanceCreate,
+    payload: dict = Depends(get_current_user_payload),
     db: Session = Depends(get_db)
 ):
+
+    require_teacher(payload)
 
     student = db.query(
         Student
@@ -408,4 +421,27 @@ def teacher_add_attendance(
     return {
         "message": "Attendance added successfully",
         "student": student.name
+    }
+@app.put("/make-teacher/{email}")
+def make_teacher(
+    email: str,
+    db: Session = Depends(get_db)
+):
+
+    user = db.query(User).filter(
+        User.email == email
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    user.role = "teacher"
+
+    db.commit()
+
+    return {
+        "message": f"{email} is now a teacher"
     }
